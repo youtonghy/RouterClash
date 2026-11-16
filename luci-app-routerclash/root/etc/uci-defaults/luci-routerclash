@@ -37,7 +37,8 @@ if [ ! -e "/etc/init.d/openclash" ]; then
 		[ -d "$RC_MIGRATE_DIR/routerclash/config" ] && find "$RC_MIGRATE_DIR/routerclash/config" -type f \( -name '*.yaml' -o -name '*.yml' \) -exec sed -i -E "$RC_PATHS" {} +
 	fi
 	#leftovers of the old package: data, firewall includes, kill switch, sysupgrade list
-	rm -rf "$RC_LEGACY_DIR" "/etc/openclash" "/etc/config/openclash" "/usr/share/openclash" "/lib/upgrade/keep.d/luci-app-openclash" >/dev/null 2>&1
+	rm -rf "$RC_LEGACY_DIR" "/etc/openclash" "/etc/config/openclash" "/usr/share/openclash" "/lib/upgrade/keep.d/luci-app-openclash" \
+		"/usr/lib/lua/luci/openclash" "/usr/lib/lua/luci/view/openclash" >/dev/null 2>&1
 	uci -q delete firewall.openclash
 	uci -q delete firewall.openclash_ks
 	[ -e "/etc/config/ucitrack" ] && uci -q delete ucitrack.@openclash[-1]
@@ -288,6 +289,12 @@ fi
 
 [ -x /etc/init.d/uhttpd ] && /etc/init.d/uhttpd restart >/dev/null 2>&1
 [ -x /etc/init.d/nginx ] && /etc/init.d/nginx reload >/dev/null 2>&1
+
+#rpcd reads the ACL groups from /usr/share/rpcd/acl.d once, at startup, and only picks up
+#new ones on reload. Without this the luci-app-routerclash group stays unknown: LuCI filters
+#the menu entry out (menu_json drops every node whose acl_depends group is missing) and the
+#page answers 403. The name is new, so an upgrade from luci-app-openclash always hits it.
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd reload >/dev/null 2>&1
 
 rm -rf /tmp/luci-indexcache /tmp/luci-indexcache.* /var/luci-indexcache /var/luci-indexcache.* >/dev/null 2>&1
 rm -rf /tmp/luci-modulecache /var/luci-modulecache >/dev/null 2>&1
